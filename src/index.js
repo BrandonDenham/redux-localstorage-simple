@@ -9,6 +9,7 @@ const DEBOUNCE_DEFAULT = 0
 const IMMUTABLEJS_DEFAULT = false
 const DISABLE_WARNINGS_DEFAULT = false
 let debounceTimeout = null
+const deactivatedNamespaces = {};
 
 // ---------------------------------------------------
 /* warn
@@ -204,13 +205,16 @@ export function save ({
         return lensPath([state], rootState)
       }
     }
- 
+
     // Local function to avoid duplication of code above
     function _save () {
+      if (deactivatedNamespaces[namespace]) {
+        return;
+      }
       if (states.length === 0) {
         localStorage[namespace] = JSON.stringify(store.getState())
       } else {
-        states.forEach(state => {          
+        states.forEach(state => {
           localStorage[namespace + '_' + state] = JSON.stringify(getStateForLocalStorage(state, store.getState()))
         })
       }
@@ -286,7 +290,7 @@ export function load ({
       loadedState = JSON.parse(localStorage[namespace])
     }
   } else { // Load only specified states into the local Redux state tree
-    states.forEach(function (state) {      
+    states.forEach(function (state) {
       if (localStorage[namespace + '_' + state]) {
         loadedState = objectMerge(loadedState, realiseObject(state, JSON.parse(localStorage[namespace + '_' + state])))
       } else {
@@ -367,6 +371,54 @@ export function clear ({ namespace = NAMESPACE_DEFAULT } = {}) {
       localStorage.removeItem(key)
     }
   }
+}
+
+/**
+  Stops loading data into redux state for the current web session (will restart once refreshed or once "restart" is called)
+
+  PARAMETERS
+  ----------
+  @config (Object) -Contains configuration options
+            Properties:
+              namespace (String, optional) - Namespace that you used during the save process
+
+  Usage example:
+
+    // stop saving into redux state tree without a namespace
+    stop()
+
+    // stop saving into redux state tree data saved with a specific namespace
+    stop({
+      namespace: 'my_cool_app'
+    })
+*/
+
+export function stop ({ namespace = NAMESPACE_DEFAULT } = {}) {
+  deactivatedNamespaces[namespace] = true;
+}
+
+/**
+  Restarts loading data into redux state for the current web session after it has been stopped. Another redux action must occur before saving resumes
+
+  PARAMETERS
+  ----------
+  @config (Object) -Contains configuration options
+            Properties:
+              namespace (String, optional) - Namespace that you used during the save process
+
+  Usage example:
+
+    // restart saving into redux state tree without a namespace
+    restart()
+
+    // stop saving into redux state tree data saved with a specific namespace
+    restart({
+      namespace: 'my_cool_app'
+    })
+*/
+
+export function restart ({ namespace = NAMESPACE_DEFAULT } = {}) {
+  deactivatedNamespaces[namespace] = false;
 }
 
 // ---------------------------------------------------
